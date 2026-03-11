@@ -43,6 +43,13 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Headless Browsing -->
+		<dependency>
+			<groupId>com.microsoft.playwright</groupId>
+			<artifactId>playwright</artifactId>
+			<version>1.42.0</version>
+		</dependency>
+
 	</dependencies>
 
 	<build>
