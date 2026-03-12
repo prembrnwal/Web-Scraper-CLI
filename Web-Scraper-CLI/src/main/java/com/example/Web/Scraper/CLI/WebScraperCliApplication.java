@@ -10,6 +10,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.util.Scanner;
 
+
 @SpringBootApplication
 public class WebScraperCliApplication implements CommandLineRunner {
 
@@ -48,12 +49,8 @@ public class WebScraperCliApplication implements CommandLineRunner {
                 handleShowCode();
             } else if (input.toLowerCase().startsWith("capture ")) {
                 handleCapture(input.substring(8).trim());
-            } else if (input.toLowerCase().contains("rate of ")) {
-                String crop = input.substring(input.toLowerCase().indexOf("rate of ") + 8).trim();
-                handleRateQuery(crop);
-            } else if (input.equalsIgnoreCase("screenshot") || input.toLowerCase().startsWith("click on ")) {
-                System.out.println("Notice: This command requires Playwright (Headless Browser).");
-                System.out.println("Please free up ~1.5GB on your C: drive to enable these features.");
+            } else if (input.toLowerCase().startsWith("click on ")) {
+                handleClickOn(input.substring(9).trim());
             } else {
                 System.out.println("Unknown command. Type 'help' for examples.");
             }
@@ -63,9 +60,9 @@ public class WebScraperCliApplication implements CommandLineRunner {
     private void printHelp() {
         System.out.println("\nAvailable Commands (Lite Version):");
         System.out.println("  navigate <url>         - Open a new URL");
-        System.out.println("  rate of <crop>         - Get crop prices (e.g., 'rate of wheat')");
         System.out.println("  show code              - Display HTML of the current page");
         System.out.println("  capture <selector>     - Extract data matching CSS selector");
+        System.out.println("  click on <selector>    - Trigger a click (navigate to link)");
         System.out.println("  help                   - Show this help message");
         System.out.println("  exit/quit              - Close the application");
     }
@@ -79,6 +76,7 @@ public class WebScraperCliApplication implements CommandLineRunner {
                     .timeout(15000)
                     .get();
             currentUrl = url;
+//            System.out.println(currentUrl);
             System.out.println("Success! Page Title: " + currentDoc.title());
         } catch (Exception e) {
             System.out.println("Navigation failed: " + e.getMessage());
@@ -118,45 +116,33 @@ public class WebScraperCliApplication implements CommandLineRunner {
         }
     }
 
-    private void handleRateQuery(String cropName) {
+    private void handleClickOn(String selector) {
         if (currentDoc == null) {
-            System.out.println("Please navigate to https://www.kisaanhelpline.com/mandi-bhav first.");
+            System.out.println("Please navigate to a URL first.");
             return;
         }
         try {
-            System.out.println("Searching for the rate of: " + cropName + "...");
-            // Use Jsoup to find blocks containing the crop name (case-insensitive)
-            Elements cards = currentDoc.select("div");
-            int displayed = 0;
-            
-            System.out.println("\n--- Latest Rates for " + cropName + " ---");
-            for (Element card : cards) {
-                String fullText = card.text().toLowerCase();
-                if (fullText.contains(cropName.toLowerCase()) && fullText.contains("max price") && displayed < 5) {
-                    // This heuristic looks for specific classes used on KisaanHelpline
-                    Element titleEl = card.select("h4, h5").first();
-                    Element priceEl = card.select("button.mandi_result_card_btn").first();
-                    
-                    if (priceEl != null) {
-                        String title = titleEl != null ? titleEl.text() : cropName;
-                        String price = priceEl.text().replace("Max Price :", "").trim();
-                        
-                        System.out.println("[" + (displayed + 1) + "] " + title);
-                        System.out.println("    Rate: " + price);
-                        System.out.println("-------------------------------");
-                        displayed++;
-                        
-                        // Move to next card to avoid duplicates
-                        card.addClass("processed"); 
-                    }
-                }
+            Element element = currentDoc.select(selector).first();
+            if (element == null) {
+                System.out.println("No element found matching: " + selector);
+                return;
             }
-            if (displayed == 0) {
-                System.out.println("Could not find specific price cards for '" + cropName + "' on the current page.");
-                System.out.println("Try capturing 'table' or 'div' to see the structure.");
+
+            if (element.tagName().equalsIgnoreCase("a")) {
+                String url = element.absUrl("href");
+                if (!url.isEmpty()) {
+                    System.out.println("Found link. Clicking to navigate: " + url);
+                    handleNavigate(url);
+                } else {
+                    System.out.println("Found anchor tag but it has no valid href.");
+                }
+            } else {
+                System.out.println("Triggered 'click' on <" + element.tagName() + ">.");
+                System.out.println("Note: In this Jsoup-based light version, clicking only navigates if the element is a link (<a>).");
+                System.out.println("Text content: " + element.text());
             }
         } catch (Exception e) {
-            System.out.println("Error: " + e.getMessage());
+            System.out.println("Action failed: " + e.getMessage());
         }
     }
 }
